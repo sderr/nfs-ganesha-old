@@ -156,6 +156,7 @@ void * _9p_socket_thread( void * Arg )
   u16 tag;
     unsigned int i = 0 ;
   char * _9pmsg  = NULL;
+  unsigned long streampos = 0;
   uint32_t * p_9pmsglen = NULL ;
 
   _9p_conn_t _9p_conn ;
@@ -176,6 +177,10 @@ void * _9p_socket_thread( void * Arg )
    }
   _9p_conn.sequence = 0 ;
   atomic_store_uint32_t(&_9p_conn.refcount, 0);
+
+  /* Init streampos logging */
+  _9p_conn.sc_streampos = 0; ;
+  pthread_mutex_init(&_9p_conn.poslock, NULL);
 
   if( gettimeofday( &_9p_conn.birth, NULL ) == -1 )
    LogFatal( COMPONENT_9P, "Cannot get connection's time of birth" ) ;
@@ -246,8 +251,10 @@ void * _9p_socket_thread( void * Arg )
             p_9pmsglen = (uint32_t *)_9pmsg ;
 
             LogFullDebug( COMPONENT_9P,
-                          "Received 9P/TCP message of size %u from client %s on socket %lu",
-                          *p_9pmsglen, strcaller, tcp_sock ) ;
+                          "Received 9P/TCP message of size %u from client %s on socket %lu at streampos %lu",
+                          *p_9pmsglen, strcaller, tcp_sock, streampos ) ;
+
+            streampos += readlen;
 
             total_readlen = readlen;
             while( total_readlen < *p_9pmsglen )
@@ -282,6 +289,8 @@ void * _9p_socket_thread( void * Arg )
                  total_readlen += readlen ;
              } /* while */
              
+             streampos += total_readlen;
+
              /* Message is good. Get a preq from the worker's pool */
              /* Choose a worker depending on its queue length */
              worker_index = nfs_core_select_worker_queue( WORKER_INDEX_ANY );

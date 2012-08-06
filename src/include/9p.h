@@ -364,6 +364,8 @@ typedef struct _9p_conn__
   _9p_fid_t       fids[_9P_FID_PER_CONN] ;
   _9p_flush_bucket_t flush_buckets[FLUSH_BUCKETS];
   unsigned long sequence ;
+  unsigned long sc_streampos; /* server->client streampos */
+  pthread_mutex_t poslock;
 } _9p_conn_t ;
 
 typedef struct _9p_request_data__
