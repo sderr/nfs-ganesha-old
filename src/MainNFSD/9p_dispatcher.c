@@ -221,6 +221,8 @@ void * _9p_socket_thread( void * Arg )
   int tag;
   unsigned long sequence = 0;
   unsigned int i = 0 ;
+  unsigned long streampos = 0;
+
   char * _9pmsg ;
   uint32_t * p_9pmsglen = NULL ;
 
@@ -241,6 +243,9 @@ void * _9p_socket_thread( void * Arg )
   }
   atomic_store_uint32_t(&_9p_conn.refcount, 0);
 
+
+  _9p_conn.sc_streampos = 0; ;
+  pthread_mutex_init(&_9p_conn.poslock, NULL);
 
   if( gettimeofday( &_9p_conn.birth, NULL ) == -1 )
    LogFatal( COMPONENT_9P, "Can get connection's time of birth" ) ;
@@ -328,8 +333,10 @@ void * _9p_socket_thread( void * Arg )
            p_9pmsglen = (uint32_t *)_9pmsg ;
 
             LogFullDebug( COMPONENT_9P,
-                          "Received 9P/TCP message of size %u from client %s on socket %lu",
-                          *p_9pmsglen, strcaller, tcp_sock ) ;
+                          "Received 9P/TCP message of size %u from client %s on socket %lu at streampos %lu",
+                          *p_9pmsglen, strcaller, tcp_sock, streampos ) ;
+
+            streampos += readlen;
 
             if( *p_9pmsglen < _9P_HDR_SIZE ) 
               {
@@ -376,6 +383,8 @@ void * _9p_socket_thread( void * Arg )
                  total_readlen += readlen ;
              } /* while */
              
+             streampos += total_readlen;
+
              tag = *(u16*) (_9pmsg + _9P_HDR_SIZE + _9P_TYPE_SIZE);
              _9p_AddFlushHook(&preq->r_u._9p, tag, sequence++);
              LogFullDebug( COMPONENT_9P, "Request tag is %d\n", tag);
